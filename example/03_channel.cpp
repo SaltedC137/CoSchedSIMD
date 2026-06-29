@@ -1,16 +1,16 @@
 // 03_channel.cpp — producer-consumer with Channel
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
-struct Producer : css::Coroutine
+struct Producer : ccss::Coroutine
 {
-  css::Channel &ch;
+  ccss::Channel &ch;
   int sent;
 
-  Producer (css::Channel &c) : ch (c), sent (0) {}
+  Producer (ccss::Channel &c) : ch (c), sent (0) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     while (sent < 5)
@@ -25,15 +25,15 @@ struct Producer : css::Coroutine
   }
 };
 
-struct Consumer : css::Coroutine
+struct Consumer : ccss::Coroutine
 {
-  css::Channel &ch;
+  ccss::Channel &ch;
   int received;
 
-  Consumer (css::Channel &c) : ch (c), received (0) {}
+  Consumer (ccss::Channel &c) : ch (c), received (0) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     while (received < 5)
@@ -51,8 +51,8 @@ struct Consumer : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
-  css::Channel ch;
+  ccss::Scheduler sched;
+  ccss::Channel ch;
   ch.reserve (3);
   sched.spawn<Producer> (ch);
   sched.spawn<Consumer> (ch);

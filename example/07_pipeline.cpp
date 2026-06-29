@@ -1,17 +1,17 @@
 // 07_pipeline.cpp — multi-stage pipeline with channels + sentinel shutdown
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
 static const int EOS = -1; // end-of-stream sentinel
 
-struct Generator : css::Coroutine
+struct Generator : ccss::Coroutine
 {
-  css::Channel &out;
+  ccss::Channel &out;
   int sent;
   int total;
-  Generator (css::Channel &o, int n) : out (o), sent (0), total (n) {}
-  css::Status
-  run (css::Scheduler &sched)
+  Generator (ccss::Channel &o, int n) : out (o), sent (0), total (n) {}
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     while (sent < total)
@@ -27,13 +27,13 @@ struct Generator : css::Coroutine
   }
 };
 
-struct Doubler : css::Coroutine
+struct Doubler : ccss::Coroutine
 {
-  css::Channel &in;
-  css::Channel &out;
-  Doubler (css::Channel &i, css::Channel &o) : in (i), out (o) {}
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Channel &in;
+  ccss::Channel &out;
+  Doubler (ccss::Channel &i, ccss::Channel &o) : in (i), out (o) {}
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     for (;;)
@@ -54,12 +54,12 @@ struct Doubler : css::Coroutine
   }
 };
 
-struct Printer : css::Coroutine
+struct Printer : ccss::Coroutine
 {
-  css::Channel &in;
-  Printer (css::Channel &i) : in (i) {}
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Channel &in;
+  Printer (ccss::Channel &i) : in (i) {}
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     for (;;)
@@ -80,10 +80,10 @@ struct Printer : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
+  ccss::Scheduler sched;
 
-  css::Channel gen_to_dbl;
-  css::Channel dbl_to_prn;
+  ccss::Channel gen_to_dbl;
+  ccss::Channel dbl_to_prn;
   gen_to_dbl.reserve (4);
   dbl_to_prn.reserve (4);
 

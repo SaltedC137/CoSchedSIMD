@@ -1,14 +1,14 @@
-# libcss — Cooperative Coroutine Scheduler with SIMD
+# libccss — Cooperative Coroutine Scheduler with SIMD
 
 A single-header, zero-dependency C++17 cooperative coroutine scheduler. Uses AVX2 SIMD to accelerate sleep-timer management (8 lanes of int32 decrement + wakeup compaction per cycle). Coroutines are stackless via Duff's Device — no `setjmp`/`longjmp`, no assembly, no allocations per context-switch.
 
 ## Quick Look
 
 ```cpp
-#include "libcss.hpp"
+#include "libccss.hpp"
 
-struct Blinker : css::Coroutine {
-  css::Status run(css::Scheduler &sched) {
+struct Blinker : ccss::Coroutine {
+  ccss::Status run(ccss::Scheduler &sched) {
     CT_BEGIN();               // opens the state-machine switch
     for (;;) {
       CT_SLEEP(3);           // suspend for 3 ticks

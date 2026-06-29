@@ -1,16 +1,16 @@
 // 02_sleep.cpp — timed suspension
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
-struct Timer : css::Coroutine
+struct Timer : ccss::Coroutine
 {
   const char *label;
   int delay;
 
   Timer (const char *l, int d) : label (l), delay (d) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     std::printf ("[%s] sleeping %d ticks…\n", label, delay);
@@ -24,7 +24,7 @@ struct Timer : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
+  ccss::Scheduler sched;
   sched.spawn<Timer> ("fast", 2); // wakes at tick 2
   sched.spawn<Timer> ("slow", 5); // wakes at tick 5
   sched.run ();

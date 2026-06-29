@@ -1,16 +1,16 @@
 // 05_blinker.cpp — classic LED blinker
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
-struct Blinker : css::Coroutine
+struct Blinker : ccss::Coroutine
 {
   const char *name;
   int cycles;
 
   Blinker (const char *n) : name (n), cycles (0) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     while (cycles < 5)
@@ -29,7 +29,7 @@ struct Blinker : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
+  ccss::Scheduler sched;
   sched.spawn<Blinker> ("LED1");
   sched.spawn<Blinker> ("LED2");
   sched.run ();

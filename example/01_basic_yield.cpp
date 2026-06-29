@@ -1,10 +1,10 @@
 // 01_basic_yield.cpp — cooperative round-robin yielding
 // NOTE: Duff's Device requires all live-across-suspend state to be member
 // fields.
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
-struct Worker : css::Coroutine
+struct Worker : ccss::Coroutine
 {
   const char *label;
   int remaining;
@@ -12,8 +12,8 @@ struct Worker : css::Coroutine
 
   Worker (const char *l, int c) : label (l), remaining (c), tick (0) {}
 
-  css::Status
-  run (css::Scheduler & /*sched*/)
+  ccss::Status
+  run (ccss::Scheduler & /*sched*/)
   {
     CT_BEGIN ();
     while (remaining > 0)
@@ -31,7 +31,7 @@ struct Worker : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
+  ccss::Scheduler sched;
   sched.spawn<Worker> ("A", 3);
   sched.spawn<Worker> ("B", 3);
   sched.run ();

@@ -17,7 +17,7 @@
 #define CTICK_LIKELY(x) __builtin_expect (!!(x), 1)
 #define CTICK_UNLIKELY(x) __builtin_expect (!!(x), 0)
 #define CTICK_PREFETCH_R(p) __builtin_prefetch ((p), 0, 1)
-#define CSS_FALLTHROUGH __attribute__ ((fallthrough))
+#define ccss_FALLTHROUGH __attribute__ ((fallthrough))
 #elif defined(_MSC_VER)
 #define CTICK_FORCE_INLINE __forceinline
 #define CTICK_NOINLINE __declspec (noinline)
@@ -25,7 +25,7 @@
 #define CTICK_LIKELY(x) (x)
 #define CTICK_UNLIKELY(x) (x)
 #define CTICK_PREFETCH_R(p)
-#define CSS_FALLTHROUGH __fallthrough
+#define ccss_FALLTHROUGH __fallthrough
 #else
 #define CTICK_FORCE_INLINE inline
 #define CTICK_NOINLINE
@@ -33,10 +33,10 @@
 #define CTICK_LIKELY(x) (x)
 #define CTICK_UNLIKELY(x) (x)
 #define CTICK_PREFETCH_R(p)
-#define CSS_FALLTHROUGH (void)0
+#define ccss_FALLTHROUGH (void)0
 #endif
 
-namespace css
+namespace ccss
 {
 
 struct Scheduler;
@@ -621,7 +621,7 @@ Channel::wait (Scheduler & /*unused*/, Coroutine *c)
   return CT_WAITING;
 }
 
-} // namespace css
+} // namespace ccss
 
 #define CT_BEGIN()                                                            \
   switch (this->pc)                                                           \
@@ -633,7 +633,7 @@ Channel::wait (Scheduler & /*unused*/, Coroutine *c)
   do                                                                          \
     {                                                                         \
       this->pc = n;                                                           \
-      return ::css::CT_READY;                                                 \
+      return ::ccss::CT_READY;                                                \
     case n:;                                                                  \
     }                                                                         \
   while (0)
@@ -647,7 +647,7 @@ Channel::wait (Scheduler & /*unused*/, Coroutine *c)
           this->pc = n;                                                       \
           return sched.sleep_current (this, static_cast<int32_t> (ticks));    \
         }                                                                     \
-      CSS_FALLTHROUGH;                                                        \
+      ccss_FALLTHROUGH;                                                       \
     case n:;                                                                  \
     }                                                                         \
   while (0)
@@ -659,10 +659,10 @@ Channel::wait (Scheduler & /*unused*/, Coroutine *c)
       if (!(cond))                                                            \
         {                                                                     \
           this->pc = n;                                                       \
-          return ::css::CT_READY;                                             \
+          return ::ccss::CT_READY;                                            \
         case n:                                                               \
           if (!(cond))                                                        \
-            return ::css::CT_READY;                                           \
+            return ::ccss::CT_READY;                                          \
         }                                                                     \
     }                                                                         \
   while (0)
@@ -687,4 +687,4 @@ Channel::wait (Scheduler & /*unused*/, Coroutine *c)
 
 #define CT_END()                                                              \
   }                                                                           \
-  return ::css::CT_DEAD
+  return ::ccss::CT_DEAD

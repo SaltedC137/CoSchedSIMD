@@ -1,13 +1,13 @@
 // 06_multi_coro.cpp — mixed coroutine types in one scheduler
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
-struct Yielder : css::Coroutine
+struct Yielder : ccss::Coroutine
 {
   int remaining;
   Yielder (int count) : remaining (count) {}
-  css::Status
-  run (css::Scheduler & /*sched*/)
+  ccss::Status
+  run (ccss::Scheduler & /*sched*/)
   {
     CT_BEGIN ();
     while (remaining > 0)
@@ -19,12 +19,12 @@ struct Yielder : css::Coroutine
   }
 };
 
-struct Sleeper : css::Coroutine
+struct Sleeper : ccss::Coroutine
 {
   int delay;
   Sleeper (int d) : delay (d) {}
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     CT_SLEEP (delay);
@@ -33,14 +33,14 @@ struct Sleeper : css::Coroutine
   }
 };
 
-struct Ping : css::Coroutine
+struct Ping : ccss::Coroutine
 {
-  css::Channel &ch;
+  ccss::Channel &ch;
   int sent;
   int total;
-  Ping (css::Channel &c, int n) : ch (c), sent (0), total (n) {}
-  css::Status
-  run (css::Scheduler &sched)
+  Ping (ccss::Channel &c, int n) : ch (c), sent (0), total (n) {}
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     while (sent < total)
@@ -54,12 +54,12 @@ struct Ping : css::Coroutine
   }
 };
 
-struct Pong : css::Coroutine
+struct Pong : ccss::Coroutine
 {
-  css::Channel &ch;
-  Pong (css::Channel &c) : ch (c) {}
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Channel &ch;
+  Pong (ccss::Channel &c) : ch (c) {}
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     for (;;)
@@ -79,8 +79,8 @@ struct Pong : css::Coroutine
 int
 main ()
 {
-  css::Scheduler sched;
-  css::Channel ch;
+  ccss::Scheduler sched;
+  ccss::Channel ch;
   ch.reserve (4);
 
   sched.spawn<Yielder> (5);

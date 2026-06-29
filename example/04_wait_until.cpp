@@ -1,5 +1,5 @@
 // 04_wait_until.cpp — polling a shared flag
-#include "../libcss.hpp"
+#include "../libccss.hpp"
 #include <cstdio>
 
 struct Flag
@@ -7,14 +7,14 @@ struct Flag
   bool ready = false;
 };
 
-struct Waiter : css::Coroutine
+struct Waiter : ccss::Coroutine
 {
   Flag &flag;
 
   Waiter (Flag &f) : flag (f) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     std::printf ("[waiter] waiting for flag…\n");
@@ -25,14 +25,14 @@ struct Waiter : css::Coroutine
   }
 };
 
-struct Signaller : css::Coroutine
+struct Signaller : ccss::Coroutine
 {
   Flag &flag;
 
   Signaller (Flag &f) : flag (f) {}
 
-  css::Status
-  run (css::Scheduler &sched)
+  ccss::Status
+  run (ccss::Scheduler &sched)
   {
     CT_BEGIN ();
     CT_SLEEP (4); // delay the signal
@@ -46,7 +46,7 @@ int
 main ()
 {
   Flag flag;
-  css::Scheduler sched;
+  ccss::Scheduler sched;
   sched.spawn<Waiter> (flag);
   sched.spawn<Signaller> (flag);
   sched.run ();
