@@ -66,4 +66,4 @@ Or just `#include "libcss.hpp"` — no compilation needed.
 
 ## License
 
-MIT
+[[MIT License]](LICENSE)
