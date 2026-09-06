@@ -606,36 +606,34 @@ public:
     return tick_count;
   }
 
-    CTICK_FORCE_INLINE void
-    retire (Coroutine *coroutine)
-    {
-      if (CTICK_UNLIKELY (
-              !coroutine ||
-              tasks.empty () ||
-              coroutine->slot >= tasks.size () ||
-              tasks[coroutine->slot] != coroutine))
-        {
-          return;
-        }
-      dead_list.push_back (coroutine);
-      sleep_mgr.remove (coroutine);
-      if (coroutine->channel)
-        {
-          coroutine->channel->remove_waiter (coroutine);
-        }
-      coroutine->status = CT_DEAD;
-      std::size_t index = coroutine->slot;
-      std::size_t last = tasks.size () - 1;
-      if (index != last)
-        {
-          Coroutine *moved = tasks[last];
-          tasks[index] = moved;
-          moved->slot = index;
-        }
-      tasks.pop_back ();
-      coroutine->scheduler = 0;
-      --alive_count;
-    }
+  CTICK_FORCE_INLINE void
+  retire (Coroutine *coroutine)
+  {
+    if (CTICK_UNLIKELY (!coroutine || tasks.empty ()
+                        || coroutine->slot >= tasks.size ()
+                        || tasks[coroutine->slot] != coroutine))
+      {
+        return;
+      }
+    dead_list.push_back (coroutine);
+    sleep_mgr.remove (coroutine);
+    if (coroutine->channel)
+      {
+        coroutine->channel->remove_waiter (coroutine);
+      }
+    coroutine->status = CT_DEAD;
+    std::size_t index = coroutine->slot;
+    std::size_t last = tasks.size () - 1;
+    if (index != last)
+      {
+        Coroutine *moved = tasks[last];
+        tasks[index] = moved;
+        moved->slot = index;
+      }
+    tasks.pop_back ();
+    coroutine->scheduler = 0;
+    --alive_count;
+  }
 
   CTICK_HOT void
   step ()
@@ -655,7 +653,10 @@ public:
           }
 
         Status s = c->run_fn (c, *this);
-
+        if (CTICK_UNLIKELY (c->status == CT_DEAD))
+          {
+            continue;
+          }
         if (s == CT_READY)
           {
             c->status = CT_READY;
