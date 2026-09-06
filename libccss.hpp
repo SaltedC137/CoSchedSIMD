@@ -1,10 +1,14 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <limits>
+#include <memory>
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -41,6 +45,7 @@ namespace ccss
 
 struct Scheduler;
 struct Coroutine;
+struct Channel;
 
 enum Status : uint8_t
 {
@@ -60,10 +65,13 @@ struct Coroutine
   RunFn run_fn;
   DestroyFn destroy_fn;
   std::size_t slot;
+  Channel *channel;
+  Scheduler *scheduler;
 
   CTICK_FORCE_INLINE
   Coroutine ()
-      : pc (0), status (CT_READY), run_fn (0), destroy_fn (0), slot (0)
+      : pc (0), status (CT_READY), run_fn (0), destroy_fn (0), slot (0),
+        channel (0), scheduler (0)
   {
   }
 
@@ -218,7 +226,34 @@ struct SleepManager
   add (Coroutine *c, int32_t delay)
   {
     delays.push_back (delay);
-    tasks.push_back (c);
+    try
+      {
+        tasks.push_back (c);
+      }
+    catch (...)
+      {
+        delays.pop_back ();
+        throw;
+      }
+  }
+
+  CTICK_FORCE_INLINE void
+  remove (Coroutine *c)
+  {
+    std::size_t keep = 0;
+
+    for (std::size_t index = 0; index < tasks.size (); ++index)
+      {
+        if (tasks[index] == c)
+          {
+            continue;
+          }
+        delays[keep] = delays[index];
+        tasks[keep] = tasks[index];
+        ++keep;
+      }
+    delays.resize (keep);
+    tasks.resize (keep);
   }
 
   CTICK_HOT void
@@ -372,6 +407,21 @@ struct Channel
   RingQueue q;
   std::vector<Coroutine *> waiters;
 
+  explicit Channel (std::size_t max_size = 64) : max_queue_sizde (max_size)
+  {
+    if (max_queue_sizde != 0)
+      {
+        q.reserve (max_queue_sizde);
+      }
+  }
+
+  ~Channel ();
+
+  Channel (const Channel &) = delete;
+  Channel &operator= (const Channel &) = delete;
+  Channel (const Channel &&) = delete;
+  Channel &operator= (const Channel &&) = delete;
+
   CTICK_FORCE_INLINE void
   reserve (std::size_t n)
   {
@@ -399,6 +449,10 @@ struct Channel
 
   void send (Scheduler &sched, int v);
   Status wait (Scheduler &sched, Coroutine *c);
+  void remove_waiter (Coroutine *c);
+
+private:
+  std::size_t max_queue_sizde;
 };
 
 struct Scheduler
@@ -450,47 +504,89 @@ struct Scheduler
     static_assert (std::is_base_of<Coroutine, T>::value,
                    "T must derive from Coroutine");
 
-    T *t = new T (std::forward<Args> (args)...);
-    init<T> (t);
-    return t;
+    std::unique_ptr<T> task
+        = std::make_unique<T> (std::forward<Args> (args)...);
+
+    init<T> (task.get ());
+    return task.release ();
   }
 
+private:
   template <class T>
   CTICK_FORCE_INLINE void
-  init (T *t)
+  init (T *task)
   {
-    t->pc = 0;
-    t->status = CT_READY;
-    t->run_fn = &invoke_coroutine<T>;
-    t->destroy_fn = &destroy_coroutine<T>;
-    t->slot = tasks.size ();
+    task->pc = 0;
+    task->status = CT_READY;
+    task->run_fn = &invoke_coroutine<T>;
+    task->destroy_fn = &destroy_coroutine<T>;
+    task->slot = tasks.size ();
+    task->scheduler = this;
+    task->channel = 0;
 
-    tasks.push_back (t);
-    ready.push_back (t);
+    tasks.push_back (task);
+    try
+      {
+
+        ready.push_back (task);
+      }
+    catch (...)
+      {
+        tasks.pop_back ();
+        task->scheduler = 0;
+        throw;
+      }
     ++alive_count;
   }
 
+public:
+  template <class T>
   CTICK_FORCE_INLINE Status
-  sleep_current (Coroutine *c, int32_t delay)
+  sleep_current (Coroutine *c, T delay)
   {
-    if (CTICK_UNLIKELY (delay <= 0))
+    using Delay = typename std::decay<T>::type;
+    static_assert (std::is_integral<Delay>::value,
+                   "sleep delay must be an integral type");
+    if constexpr (std::is_signed<Delay>::value)
       {
-        return CT_READY;
+        if (delay <= 0)
+          {
+            return CT_READY;
+          }
+      }
+    else
+      {
+        if (delay == 0)
+          {
+            return CT_READY;
+          }
       }
 
+    std::uintmax_t normalized = static_cast<std::uintmax_t> (delay);
+    const std::uintmax_t max_delay
+        = static_cast<std::uintmax_t> (std::numeric_limits<int32_t>::max ());
+    normalized = std::min (normalized, max_delay);
+    sleep_mgr.add (c, static_cast<int32_t> (normalized));
     c->status = CT_SLEEPING;
-    sleep_mgr.add (c, delay);
     return CT_SLEEPING;
   }
 
   CTICK_FORCE_INLINE void
-  wake (Coroutine *c)
+  wake (Coroutine *coroutine)
   {
-    if (CTICK_LIKELY (c && c->status != CT_DEAD && c->status != CT_READY))
+    if (CTICK_UNLIKELY (!coroutine || coroutine->scheduler != this
+                        || coroutine->status == CT_DEAD
+                        || coroutine->status == CT_READY))
       {
-        c->status = CT_READY;
-        ready.push_back (c);
+        return;
       }
+    ready.push_back (coroutine);
+    sleep_mgr.remove (coroutine);
+    if (coroutine->channel)
+      {
+        coroutine->channel->remove_waiter (coroutine);
+      }
+    coroutine->status = CT_READY;
   }
 
   CTICK_FORCE_INLINE bool
