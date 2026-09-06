@@ -572,21 +572,20 @@ public:
   }
 
   CTICK_FORCE_INLINE void
-  wake (Coroutine *coroutine)
+  wake (Coroutine *c)
   {
-    if (CTICK_UNLIKELY (!coroutine || coroutine->scheduler != this
-                        || coroutine->status == CT_DEAD
-                        || coroutine->status == CT_READY))
+    if (CTICK_UNLIKELY (!c || c->scheduler != this || c->status == CT_DEAD
+                        || c->status == CT_READY))
       {
         return;
       }
-    ready.push_back (coroutine);
-    sleep_mgr.remove (coroutine);
-    if (coroutine->channel)
+    ready.push_back (c);
+    sleep_mgr.remove (c);
+    if (c->channel)
       {
-        coroutine->channel->remove_waiter (coroutine);
+        c->channel->remove_waiter (c);
       }
-    coroutine->status = CT_READY;
+    c->status = CT_READY;
   }
 
   CTICK_FORCE_INLINE bool
