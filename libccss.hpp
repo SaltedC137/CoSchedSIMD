@@ -418,9 +418,9 @@ struct Channel
 
   Channel (const Channel &) = delete;
   Channel &operator= (const Channel &) = delete;
-  
-  Channel ( Channel &&) = delete;
-  Channel &operator= ( Channel &&) = delete;
+
+  Channel (Channel &&) = delete;
+  Channel &operator= (Channel &&) = delete;
 
   CTICK_FORCE_INLINE void
   reserve (std::size_t n)
@@ -547,6 +547,10 @@ public:
     using Delay = typename std::decay<T>::type;
     static_assert (std::is_integral<Delay>::value,
                    "sleep delay must be an integral type");
+    if (c->channel != nullptr)
+      {
+        c->channel->remove_waiter (c);
+      }
     if constexpr (std::is_signed<Delay>::value)
       {
         if (delay <= 0)
@@ -561,7 +565,6 @@ public:
             return CT_READY;
           }
       }
-
     std::uintmax_t normalized = static_cast<std::uintmax_t> (delay);
     const std::uintmax_t max_delay
         = static_cast<std::uintmax_t> (std::numeric_limits<int32_t>::max ());
@@ -609,12 +612,13 @@ public:
   CTICK_FORCE_INLINE void
   retire (Coroutine *c)
   {
-    if (CTICK_UNLIKELY (!c || tasks.empty ()
-                        || c->slot >= tasks.size ()
-                        || tasks[c->slot] != c))
+    if (CTICK_UNLIKELY (!c || tasks.empty () || c->slot >= tasks.size ()
+                        || tasks[c->slot] != c || c->status == CT_DEAD))
       {
         return;
       }
+    ready.erase (std::remove (ready.begin (), ready.end (), c),
+                 ready.end ()); // defance against double-retire
     dead_list.push_back (c);
     sleep_mgr.remove (c);
     if (c->channel)
@@ -710,26 +714,22 @@ Channel::send (Scheduler &sched, int v)
   if (!waiters.empty ())
     {
       waiter = waiters.back ();
-
       if (!waiter || waiter->scheduler != &sched
           || waiter->status != CT_WAITING || waiter->channel != this)
         {
+          remove_waiter (waiter);
           return false;
         }
     }
-
   if (max_queue_size != 0 && q.size () >= max_queue_size)
     {
       return false;
     }
-
   q.push (v);
-
-  if (waiter)
+  if (waiter != nullptr)
     {
       sched.wake (waiter);
     }
-
   return true;
 }
 
@@ -797,7 +797,7 @@ Channel::remove_waiter (Coroutine *c)
       if ((ticks) > 0)                                                        \
         {                                                                     \
           this->pc = n;                                                       \
-          return sched.sleep_current (this, static_cast<int32_t> (ticks));    \
+          return sched.sleep_current (this, (ticks));                         \
         }                                                                     \
       ccss_FALLTHROUGH;                                                       \
     case n:;                                                                  \
