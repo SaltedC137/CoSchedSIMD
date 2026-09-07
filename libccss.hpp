@@ -336,10 +336,9 @@ struct SleepManager
             i += 8;
             continue;
           }
-
-        for (int j = 0; j < 8; ++j, ++i)
+        for (int j = 0; j < 8; ++j)
           {
-            Coroutine *c = tasks[i];
+            Coroutine *c = tasks[i + j];
 
             if (mask & (1 << j))
               {
@@ -348,11 +347,12 @@ struct SleepManager
               }
             else
               {
-                delays[keep] = delays[i];
+                delays[keep] = delays[i + j];
                 tasks[keep] = c;
                 ++keep;
               }
           }
+        i += 8;
       }
 
     for (; i < n; ++i)
@@ -618,7 +618,7 @@ public:
         return;
       }
     ready.erase (std::remove (ready.begin (), ready.end (), c),
-                 ready.end ()); // defance against double-retire
+                 ready.end ()); // defense against double-retire
     dead_list.push_back (c);
     sleep_mgr.remove (c);
     if (c->channel)

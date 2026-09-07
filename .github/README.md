@@ -58,6 +58,21 @@ make
 
 Or just `#include "libcss.hpp"` — no compilation needed.
 
+## Testing
+
+A zero-dependency test suite (with a self-contained harness and CTest
+integration) lives under [test](../test/README.md):
+
+```sh
+cmake -S . -B build-test -DCO_SCHED_BUILD_TESTS=ON
+cmake --build build-test -j"$(nproc)"
+ctest --test-dir build-test --output-on-failure
+```
+
+It covers ring-queue mechanics, the SIMD vs. scalar sleep paths, channel
+semantics, scheduler lifecycle, the `CT_*` macros, and stress scenarios, plus
+regression cases for past defects.
+
 ## Caveats
 
 - **No preemption** — a coroutine runs until it explicitly yields or sleeps; long computation blocks everyone.
