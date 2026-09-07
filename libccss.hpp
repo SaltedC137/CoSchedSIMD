@@ -3,12 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#include <limits>
-#include <memory>
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -70,8 +69,8 @@ struct Coroutine
 
   CTICK_FORCE_INLINE
   Coroutine ()
-      : pc (0), status (CT_READY), run_fn (0), destroy_fn (0), slot (0),
-        channel (0), scheduler (0)
+      : pc (0), status (CT_READY), run_fn (nullptr), destroy_fn (nullptr),
+        slot (0), channel (nullptr), scheduler (nullptr)
   {
   }
 
@@ -448,7 +447,7 @@ struct Channel
     return q.size ();
   }
 
-  [[nodiscard]] bool send (Scheduler &sched, int v);
+  bool send (Scheduler &sched, int v);
   Status wait (Scheduler &sched, Coroutine *c);
   void remove_waiter (Coroutine *c);
 
@@ -608,22 +607,22 @@ public:
   }
 
   CTICK_FORCE_INLINE void
-  retire (Coroutine *coroutine)
+  retire (Coroutine *c)
   {
-    if (CTICK_UNLIKELY (!coroutine || tasks.empty ()
-                        || coroutine->slot >= tasks.size ()
-                        || tasks[coroutine->slot] != coroutine))
+    if (CTICK_UNLIKELY (!c || tasks.empty ()
+                        || c->slot >= tasks.size ()
+                        || tasks[c->slot] != c))
       {
         return;
       }
-    dead_list.push_back (coroutine);
-    sleep_mgr.remove (coroutine);
-    if (coroutine->channel)
+    dead_list.push_back (c);
+    sleep_mgr.remove (c);
+    if (c->channel)
       {
-        coroutine->channel->remove_waiter (coroutine);
+        c->channel->remove_waiter (c);
       }
-    coroutine->status = CT_DEAD;
-    std::size_t index = coroutine->slot;
+    c->status = CT_DEAD;
+    std::size_t index = c->slot;
     std::size_t last = tasks.size () - 1;
     if (index != last)
       {
@@ -632,7 +631,7 @@ public:
         moved->slot = index;
       }
     tasks.pop_back ();
-    coroutine->scheduler = 0;
+    c->scheduler = 0;
     --alive_count;
   }
 
