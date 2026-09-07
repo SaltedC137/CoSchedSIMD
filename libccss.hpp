@@ -407,20 +407,21 @@ struct Channel
   RingQueue q;
   std::vector<Coroutine *> waiters;
 
-  explicit Channel (std::size_t max_size = 64) : max_queue_sizde (max_size)
+  explicit Channel (std::size_t max_size = 64) : max_queue_size (max_size)
   {
-    if (max_queue_sizde != 0)
+    if (max_queue_size != 0)
       {
-        q.reserve (max_queue_sizde);
+        q.reserve (max_queue_size);
       }
   }
 
-  ~Channel ();
+  ~Channel () = default;
 
   Channel (const Channel &) = delete;
   Channel &operator= (const Channel &) = delete;
-  Channel (const Channel &&) = delete;
-  Channel &operator= (const Channel &&) = delete;
+  
+  Channel ( Channel &&) = delete;
+  Channel &operator= ( Channel &&) = delete;
 
   CTICK_FORCE_INLINE void
   reserve (std::size_t n)
@@ -447,12 +448,12 @@ struct Channel
     return q.size ();
   }
 
-  void send (Scheduler &sched, int v);
+  [[nodiscard]] bool send (Scheduler &sched, int v);
   Status wait (Scheduler &sched, Coroutine *c);
   void remove_waiter (Coroutine *c);
 
 private:
-  std::size_t max_queue_sizde;
+  std::size_t max_queue_size;
 };
 
 struct Scheduler
@@ -702,25 +703,75 @@ public:
   }
 };
 
-CTICK_FORCE_INLINE void
+CTICK_FORCE_INLINE bool
 Channel::send (Scheduler &sched, int v)
 {
+  Coroutine *waiter = 0;
+
+  if (!waiters.empty ())
+    {
+      waiter = waiters.back ();
+
+      if (!waiter || waiter->scheduler != &sched
+          || waiter->status != CT_WAITING || waiter->channel != this)
+        {
+          return false;
+        }
+    }
+
+  if (max_queue_size != 0 && q.size () >= max_queue_size)
+    {
+      return false;
+    }
+
   q.push (v);
 
-  if (CTICK_UNLIKELY (!waiters.empty ()))
+  if (waiter)
     {
-      Coroutine *c = waiters.back ();
-      waiters.pop_back ();
-      sched.wake (c);
+      sched.wake (waiter);
     }
+
+  return true;
 }
 
 CTICK_FORCE_INLINE Status
-Channel::wait (Scheduler & /*unused*/, Coroutine *c)
+Channel::wait (Scheduler &sched, Coroutine *c)
 {
-  c->status = CT_WAITING;
+  if (!c || c->scheduler != &sched || c->status != CT_READY || c->channel != 0)
+    {
+      return CT_DEAD;
+    }
+
   waiters.push_back (c);
+  c->channel = this;
+  c->status = CT_WAITING;
+
   return CT_WAITING;
+}
+
+CTICK_FORCE_INLINE void
+Channel::remove_waiter (Coroutine *c)
+{
+  if (!c)
+    {
+      return;
+    }
+  std::size_t keep = 0;
+  for (std::size_t index = 0; index < waiters.size (); ++index)
+    {
+      if (waiters[index] == c)
+        {
+          continue;
+        }
+
+      waiters[keep] = waiters[index];
+      ++keep;
+    }
+  waiters.resize (keep);
+  if (c->channel == this)
+    {
+      c->channel = 0;
+    }
 }
 
 } // namespace ccss
